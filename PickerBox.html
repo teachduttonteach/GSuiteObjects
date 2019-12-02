@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" href="https://ssl.gstatic.com/docs/script/css/add-ons.css">
+  <script type="text/javascript">
+    var DIALOG_DIMENSIONS = {
+        width: <?= data.DIALOG_WIDTH ?>,
+        height: <?= data.DIALOG_HEIGHT ?>
+    };
+    var pickerApiLoaded = false;
+
+    function onApiLoad() {
+        gapi.load('picker', {
+            'callback': function() {
+                pickerApiLoaded = true;
+            }
+        });
+        google.script.run.withSuccessHandler(createPicker)
+            .withFailureHandler(showError).getOAuthToken();
+    }
+
+    function createPicker(token) {
+
+        if (pickerApiLoaded && token) {
+        
+        // MimeTypes: https://developers.google.com/drive/api/v3/mime-types
+
+            var docsView = new google.picker.DocsView()
+                .setIncludeFolders(<?= data.INCLUDE_FOLDERS ?>)
+                .setMimeTypes(<? for (m in data.MIME_TYPES) { ?>"<?= data.MIME_TYPES[m] ?>",<? } ?>)
+                .setSelectFolderEnabled(true);
+
+            var picker = new google.picker.PickerBuilder()
+                .addView(docsView)
+                <? for (f in data.FEATURES) { ?>
+                .enableFeature(google.picker.Feature.<?!= data.FEATURES[f] ?>)
+                <? } ?>
+                .hideTitleBar()
+                .setSize(DIALOG_DIMENSIONS.width - 2, DIALOG_DIMENSIONS.height - 2)
+                .setOAuthToken(token)
+                .setCallback(pickerCallback)
+                .setOrigin(google.script.host.origin)
+                .build();
+
+            picker.setVisible(true);
+
+        } else {
+            showError('Unable to load the file picker.');
+        }
+    }
+
+    /**
+     * A callback function that extracts the chosen document's metadata from the
+     * response object. For details on the response object, see
+     * https://developers.google.com/picker/docs/result
+     *
+     * @param {object} data The response object.
+     */
+function pickerCallback(data) {
+  var action = data[google.picker.Response.ACTION];
+  if (action == google.picker.Action.PICKED) {
+    var doc = data[google.picker.Response.DOCUMENTS][0];
+    var id = doc[google.picker.Document.ID];
+    // Show the ID of the Google Drive folder
+    google.script.run.setDoc(id);
+     google.script.host.close();
+  } else if (action == google.picker.Action.CANCEL) {
+     google.script.host.close();
+  }
+}
+     
+function showError(message) {
+  document.getElementById('result').innerHTML = 'Error: ' + message;
+}
+  </script>
+</head>
+
+<body>
+    <script type="text/javascript" src="https://apis.google.com/js/api.js?onload=onApiLoad"></script>
+</body>
+</html>
