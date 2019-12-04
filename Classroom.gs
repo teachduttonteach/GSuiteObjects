@@ -1,17 +1,24 @@
 var Classroom = function() {
   this.classList = Classroom.Courses.list().courses;
+  
+  this.getClass = function(title) {
+    for (var k = 0; k < this.classList.length; k++) {
+      if (this.classList[k].name == title) return new Class(this.classList[k]);
+    }
+  }
 }
 
-var Class = function(title, courses) {
-  this.id = null;
-  for (var k = 0; k < courses.length; k++) {
-    if (courses[k].name == title) this.id = courses.id;
-  }
-  if (this.id == null) throw new Error("Could not find class '" + title + "' in class list");
+var Class = function(course) {
+  if (course == null) throw new Error("Could not find class in class list");
+  this.class = course;
   
-  this.courseWork = this.courses.CourseWork.list(this.id, {orderBy: "dueDate asc"}).courseWork;
-  this.announcements = this.courses.Announcements.list(this.id, {orderBy: "dueDate asc"}).announcements;
-  this.topics = this.courses.Topics.list(this.id).topic;
+  this.courseWork = this.courses.CourseWork.list(this.class.id, {orderBy: "dueDate asc"}).courseWork;
+  this.announcements = this.courses.Announcements.list(this.class.id, {orderBy: "dueDate asc"}).announcements;
+  this.topics = this.courses.Topics.list(this.class.id).topic;
+  
+  this.getCalendarId = function() {
+    return this.class.calendarId;
+  };
   
   this.convertClassroomData = function() {
     var objClassroomData = {};
@@ -46,12 +53,12 @@ var Class = function(title, courses) {
           }
           if (this.courseWork[j]["materials"]) {
             var arrMaterials = {};
-            for (var k = 0; k < materials.length; k++) {
-              arrMaterials.title = materials[k]["title"];
-              if (materials[k]["driveFile"]) arrMaterials.file = materials[k]["driveFile"]["driveFile"];
-              else if (materials[k]["youtubeVideo"]) arrMaterials.video = materials[k]["youtubeVideo"];
-              else if (materials[k]["link"]) arrMaterials.link = materials[k]["link"];
-              else if (materials[k]["form"]) arrMaterials.form = materials[k]["form"];
+            for (var k = 0; k < this.materials.length; k++) {
+              arrMaterials.title = this.materials[k]["title"];
+              if (this.materials[k]["driveFile"]) arrMaterials.file = this.materials[k]["driveFile"]["driveFile"];
+              else if (this.materials[k]["youtubeVideo"]) arrMaterials.video = this.materials[k]["youtubeVideo"];
+              else if (this.materials[k]["link"]) arrMaterials.link = this.materials[k]["link"];
+              else if (this.materials[k]["form"]) arrMaterials.form = this.materials[k]["form"];
             }
             objWork.materials = arrMaterials;
           }

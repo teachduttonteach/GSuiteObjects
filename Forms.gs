@@ -48,7 +48,7 @@ var Form = function(id) {
     }
   };
   
-  this.addItem = function(title, row, questionType, optionsColumn, mcGridColumnsColumn, mcGridRowsColumn) {
+  this.addItem = function(title, row, questionType, optionsColumn, mcGridRowsColumn) {
     checkVariables({"Title": {"null": title}, "Sheet": {"object": sheet}, "Row": {"int": row}, "Column": {"int": column}}, "Form.addItem");
     switch (questionType) {
       case bellworkForm.QUESTION_TYPES.PARAGRAPH["string"]:
@@ -67,12 +67,12 @@ var Form = function(id) {
         break;
       case bellworkForm.QUESTION_TYPES.MC_GRID["string"]:
         var item = this.form.addGridItem().setTitle(title);
-        item.setColumns(this.form.convertLinebreaksToList(sheet.getValue(row, mcGridColumnsColumn)));
+        item.setColumns(this.form.convertLinebreaksToList(sheet.getValue(row, optionsColumn)));
         item.setRows(this.form.convertLinebreaksToList(sheet.getValue(row, mcGridRowsColumn)));
         break;
       case bellworkForm.QUESTION_TYPES.MS_GRID["string"]:
         var item = this.form.addCheckboxGridItem().setTitle(title);
-        item.setColumns(this.form.convertLinebreaksToList(sheet.getValue(row, mcGridColumnsColumn)));
+        item.setColumns(this.form.convertLinebreaksToList(sheet.getValue(row, optionsColumn)));
         item.setRows(this.form.convertLinebreaksToList(sheet.getValue(row, mcGridRowsColumn)));
         break;
       default:

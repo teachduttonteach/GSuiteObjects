@@ -54,6 +54,65 @@ var Docs = function(id) {
     this.docObject.getBody().setText("");
   }
   
-  this.writeDocument = function() {
-  };
+  this.writeClassroomDocuments = function(topic, options) {
+    if (!underscoreGS._isObject(options)) options = {};
+    
+    if (!options["dueDate"]) options["dueDate"] = "Due Date: ";
+    if (!options["dateOrder"]) options["dateOrder"] = "MDY";
+    if (!options["dateDelimiter"]) options["dateDelimiter"] = "/";
+    if (!options["displayTitle"]) options["displayTitle"] = true;
+    if (!options["displayAnnouncements"]) options["displayAnnouncements"] = true;
+    if (!options["displayCoursework"]) options["displayCoursework"] = true;
+    if (!options["displayCourseworkTitle"]) options["displayCourseworkTitle"] = true;
+    if (!options["displayDueDate"]) options["displayDueDate"] = true;
+    if (!options["displayDescription"]) options["displayDescription"] = true;
+    if (!options["displayMaterials"]) options["displayMaterials"] = true;
+    if (!options["displayFiles"]) options["displayFiles"] = true;
+    if (!options["displayVideos"]) options["displayVideos"] = true;
+    if (!options["displayLinks"]) options["displayLinks"] = true;
+    if (!options["displayForms"]) options["displayForms"] = true;
+    
+    this.clearBody();
+    if (options["displayTitle"]) this.appendHeader(topic, "Title");
+    if (options["displayAnnouncements"]) { 
+      for (var announcement in topic.announcements.titles) {
+        this.appendHeader(announcement["title"], topic.announcements.level);
+      }
+    }
+    
+    if (options["displayCoursework"]) {
+      for (var courseWork in topic.courseWork.titles) {
+        if (options["displayCourseworkTitle"]) this.appendParagraph(courseWork.title, 2);
+        if (options["displayDueDate"] && courseWork.dueDate) {
+          var dueDateString = options["dueDate"];
+          for (var i = 0; i < options["dateOrder"].length; i++) {
+            var currentLetter = options["dateOrder"].substring(i, i + 1);
+            if (currentLetter == "M") dueDateString += courseWork["dueDate"]["month"];
+            else if (currentLetter == "D") dueDateString += courseWork["dueDate"]["day"];
+            else if (currentLetter == "Y") dueDateString += courseWork["dueDate"]["year"];
+            if (i < (options["dateOrder"].length - 1)) dueDateString += "/";
+          }            
+          this.appendParagraph(dueDateString, 3);
+        }
+        if (options["displayDescription"] && courseWork.description) {
+          this.appendParagraph(courseWork.description, "Normal");
+        }
+        if (options["displayMaterials"] && courseWork.materials) {
+          this.appendParagraph("Materials:", "Normal");
+          for (var material in courseWork.materials) {
+            if (options["displayFiles"] && material.file) {
+              this.appendItem("File", material.title, material.file);
+            } else if (options["displayVideos"] && material.video) {
+              this.appendItem("Video", material.title, material.video);
+            } else if (options["displayLinks"] && material.link) {
+              this.appendItem("Link", material.title, material.link);
+            } else if (options["displayForms"] && material.form) {
+              this.appendItem("Form", material.title, material.form);
+            }
+          }
+        }
+      }
+    }
+  }
+
 };

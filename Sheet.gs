@@ -27,6 +27,7 @@ var Sheet = function(sheetName, spreadsheet) {
       }
     );
   };
+  
 
   /**
   * Raises a number to the given power, and returns the result.
@@ -44,6 +45,15 @@ var Sheet = function(sheetName, spreadsheet) {
       return returnArray;
     } else {
       throw new Error("numColumn must be greater than 0 in Sheet.getColumn");
+    }
+  }
+  
+  this.setRange = function(rowStart, colStart, rows, cols, value) {
+    if ((rowStart > 0) && (colStart > 0) && (rows > 0) && (cols > 0)) {
+      this._sheet.getRange(rowStart, colStart, rows, cols).setValues(value);
+      return this;
+    } else {
+      throw new Error("row and column numbers need to be greater than 0 in Sheet.setValue");
     }
   }
   
@@ -126,6 +136,60 @@ var Sheet = function(sheetName, spreadsheet) {
       throw new Error("findText must be defined for Sheet.getRowFromFind");
     }
   }
+  
+  this.getLastRow = function() {
+    return this._data.length;
+  }
+  
+  this.getLastColumn = function() {
+    return this._data[0].length;
+  }
+  
+  this.changeWorkingStatus = function(status, cell, color) {  
+    if (status) {
+      this.protect().setDomainEdit(false);
+    } else {
+      this.protect().remove();
+    }
+    this.setBackground(cell[0], cell[1], color);
+  };
+
+  this.setBackground = function(row, col, color) {
+    this._sheet.getRange(row, col).setBackground(color);
+  };
+  
+  this.addValuePerColumn = function(columnHeader, rowHeaders, cellValue) {
+    if (!underscoreGS._isArray(rowHeaders)) rowHeaders = [rowHeaders];
+    var newValueColumn = rowHeaders.length + 1;
+    // If this is a new day to add bellwork, insert a new column
+    if (this.getValue(1, newValueColumn) != columnHeader) {
+      this.insertCol(newValueColumn - 1).setValue(1, newValueColumn, cellValue);
+    }
+    
+    // Go through all of the rows looking for the student name
+    for (var i = 2; i < this.getMaxRows(); i++) {
+      
+      // If we found the name of the respondent, then set the bellwork response in the response sheet
+      var foundRow = true;
+      for (var j = 1; j < newValueColumn; j++) {
+        if (rowHeaders[j] != this.getValue(i, j)) foundRow = false;
+      }
+      if (foundRow) {
+        this.setValue(i, newValueColumn, cellValue);
+        break;
+        
+        // If we need to add the respondent
+      } else if (this.getValue(i, 1) == "") {
+        for (var j = 1; j < newValueColumn; j++) {
+          this.setValue(i, j, rowHeaders[j]);
+        }
+        this.setValue(i, newValueColumn, cellValue);
+        
+        // Should I resort the sheet at this point?
+        break;
+      }
+    }
+  };
 }
 
 function openSpreadsheet(sheetInfo) {
@@ -156,6 +220,63 @@ var Spreadsheet = function(id) {
   } else {
     throw new Error("Could not find spreadsheet in Spreadsheet()");
   }
+  
+  this.getData = function(name, rowFirst) {
+    var dataSheet = this.sheet.getOrCreateSheet(name);
+    var data = {};
+    if (rowFirst || (null == rowFirst)) {
+      for (r = 1; r <= dataSheet.getLastRow(); r++) {
+        var rowData = {};
+        for (c = 1; c <= dataSheet.getLastColumn(); c++) {
+          rowData[dataSheet.getValue(0, c)] = dataSheet.getValue(r, c);
+        }
+        data[dataSheet.getValue(r, 0)] = rowData;
+      }
+    } else {
+      for (c = 1; c <= dataSheet.getLastColumn(); c++) {
+        var columnData = {};
+        for (r = 1; r <= dataSheet.getLastRow(); r++) {
+          columnData[dataSheet.getValue(r, 0)] = dataSheet.getValue(r, c);
+        }
+        data[dataSheet.getValue(0, c)] = columnData;
+      }
+    }
+    return data;
+  };
+  
+  
+  this.getOrCreateSheet = function(sheetName) {
+    if (null != sheetName) {
+      if (this.hasSheet(sheetName)) {
+        return this.getSheet(sheetName);
+      } else {
+        var newSheet = this._spreadsheet.insertSheet(sheetName);
+        this._sheets[sheetName] = new Sheet(sheetName, this._spreadsheet.getId());
+      }
+    } else {
+      throw new Error("Sheet name not defined in Spreadsheet.getOrCreateSheet");
+    }
+  };
+  
+  this.createSheet = function(sheetName) {
+    if (null != sheetName) {
+      var sheet = this._spreadsheet.insertSheet(sheetName);
+      if (null == sheet) return false;
+      return true;
+    } else {
+      throw new Error("Sheet name not defined in Spreadsheet.createSheet");
+    }
+  };
+  
+  this.hasSheet = function(sheetName) {
+    if (null != sheetName) {
+      var sheet = this._sheets[sheetName];
+      if (null == sheet) return false;
+      return true;
+    } else {
+      throw new Error("Sheet name not defined in Spreadsheet.hasSheet");
+    }
+  };
   
   this.getSheet = function(sheetName) {
     if (null != sheetName) {
@@ -223,15 +344,15 @@ var Spreadsheet = function(id) {
     }
   };
   
-  this.addColumnRange = function(min, max) {
-    this.addRange("columns", min, max);
+  this.addTriggerColumnRange = function(min, max) {
+    this.addTriggerRange("columns", min, max);
   };
   
-  this.addRowRange = function(min, max) {
-    this.addRange("rows", min, max);
+  this.addTriggerRowRange = function(min, max) {
+    this.addTriggerRange("rows", min, max);
   };
   
-  this.addRange = function(type, min, max) {
+  this.addTriggerRange = function(type, min, max) {
     if (null != type) {
       if (null != min) {
         if (isArray(min)) {
@@ -262,6 +383,7 @@ var Spreadsheet = function(id) {
 
 var SheetEvent = function(event) {
   this.sheet = new Sheet(event.source.getActiveSheet().getSheetName(), event.source.getActiveSheet().getSheetId());
+  this.sheetName = event.source.getActiveSheet().getName();
   this.row = event.range.getRow();
   this.column = event.range.getColumn();
   this.value = event.range.getValue();

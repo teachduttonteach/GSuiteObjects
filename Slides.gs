@@ -46,9 +46,11 @@ var Slides = function(id) {
       throw new Error("Height and width of dimensions need to all be integers in Slides.setDimensions");
     }
   };
-                                  
+  
   this.Slide = function(object) {
     this.slide = object;
+    this.pageElements = this.slide.getPageElements();
+    
     this.replaceImage = function(picture) {
       if (null != picture) {
         var pageElements = this.slide.getPageElements();
@@ -83,6 +85,7 @@ var Slides = function(id) {
         throw new Error("Slide title cannot be blank in Slide.setTitle");
       }
     };
+
     this.setBody = function(body) {
       if (null != body) { 
         this.slide.getPlaceholder(SlidesApp.PlaceholderType.BODY).asShape().getText().setText(body);   
@@ -91,6 +94,17 @@ var Slides = function(id) {
         throw new Error("Body cannot be blank in Slide.setBody");
       }
     };
+
+    this.getUpcomingDueDates = function(upcomingEvents) {
+      var slideText = "";
+      for (var event in upcomingEvents) {
+        if (slideText != "") slideText += "\n";
+        slideText += "\t" + getDate(event, "MD", "/", ": ");
+      }
+      if (upcomingEvents.length == 0) slideText = "\tNone";
+      this.setList(slideText);
+    };
+    
     this.setList = function(text) {
       if (null != text) { 
         this.slide.getPlaceholder(SlidesApp.PlaceholderType.BODY).asShape().getText().setText(text).getListStyle().applyListPreset(SlidesApp.ListPreset.DISC_CIRCLE_SQUARE);   
@@ -107,23 +121,81 @@ var Slides = function(id) {
         textRange.appendText("\t" + choice + "\n");
       }
       this.setList(textRange);
+      return this;
     };
     
-    this.addItem = function(type, sheet, form, row, optionsColumn) {
+    this.addItem = function(type, itemsToAdd) {
       switch (type) {
-        case form.QUESTION_TYPES.TRUE_FALSE["string"]:
+        case QUESTION_TYPES.TRUE_FALSE["string"]:
           this.setBody("True or False?");
           break;
-        case form.QUESTION_TYPES.MULTIPLE_CHOICE["string"]:
-          this.addItems(sheet.getValue(row, optionsColumn));
+        case QUESTION_TYPES.MULTIPLE_CHOICE["string"]:
+          this.addItems(itemsToAdd);
           break;
-        case form.QUESTION_TYPES.MULTIPLE_SELECT["string"]:
-          this.addItems(sheet.getValue(row, optionsColumn));
+        case QUESTION_TYPES.MULTIPLE_SELECT["string"]:
+          this.addItems(itemsToAdd);
           break;
       }
+      return this;
+    };
+    
+    this.changePicture = function(chosenPictureBlob) {
+      if (underscoreGS._isObject(chosenPictureBlob)) {
+        for (var pictureId = 0; pictureId < this.pageElements.length; pictureId++) {
+          if (this.pageElements[pictureId].getPageElementType() == SlidesApp.PageElementType.IMAGE) {
+            this.pageElements[pictureId].asImage().replace(chosenPictureBlob);
+            return pictureId;
+          }
+        }
+        return null;
+      } else {
+        throw new Error("Slide and blob of chosen picture need to be defined in Slides.changePicture");
+      }
+    };
+    
+    this.positionPicture = function(id) {
+      if (underscoreGS._isNumber(id)) {
+        if (underscoreGS._isObject(this.pageElements)) {
+          if (underscoreGS._isObject(this.pageElements[id])) {
+            var height = this.pageElements[id].getHeight();
+            var width = this.pageElements[id].getWidth();           
+            if (height > width) {
+              var newWidth = (this.maxHeight / height) * width;
+              this.pageElements[id].setWidth(newWidth);
+              this.pageElements[id].setHeight(this.maxHeight);
+              this.pageElements[id].setLeft(this.totalWidth - newWidth - 10);
+              this.pageElements[id].setTop(this.totalHeight - this.maxHeight - 10);
+            } else {
+              var newHeight = (this.maxWidth / width) * height;
+              this.pageElements[id].setHeight(newHeight);
+              this.pageElements[id].setWidth(this.maxWidth);
+              this.pageElements[id].setTop(this.totalHeight - newHeight - 10);
+              this.pageElements[id].setLeft(this.totalWidth - this.maxWidth - 10);
+            }
+            return this;
+          } else {
+            throw new Error("Could not get element id off of Slide object in Slides.positionPicture");
+          }
+        } else {
+          throw new Error("Could not get slide specified by Slide object in Slides.positionPicture");
+        }
+      } else {
+        throw new Error("ID and Slide need to be defined in Slides.positionPicture");
+      }
+    };
+    
+    this.getPageElements = function() {
+      return this.pageElements;
     };
 
-
+  };
+  
+  this.changeSlidePicture = function(folder, slideNum) {
+    if (folder != "") {
+      var chosenPicture = GSuiteObjects.Drive().getRandomPicture(folder);
+      if (null == slideNum) slideNum = 1;
+      this.getSlide(slideNum).positionPicture(this.changePicture(chosenPicture));
+    }
   };
   
   this.getSlide = function(num) {
@@ -170,7 +242,7 @@ var Slides = function(id) {
     } else {
       throw new Error("ID is not defined to remove in Slides.getSlideById");
     }
-  }
+  };
   
   this.removeSlide = function(id) {
     if (null != id) {
@@ -181,50 +253,17 @@ var Slides = function(id) {
     }
   };
   
-  this.changePicture = function(slide, chosenPictureBlob) {
-    if (underscoreGS._isObject(slide) && underscoreGS._isObject(chosenPictureBlob)) {
-      var pageElements = slide.getPageElements();
-      for (var pictureId = 0; pictureId < pageElements.length; pictureId++) {
-        if (pageElements[pictureId].getPageElementType() == SlidesApp.PageElementType.IMAGE) {
-          pageElements[pictureId].asImage().replace(chosenPictureBlob);
-          return pictureId;
-        }
-      }
-      return null;
+  this.getSlideByType = function(typeTitle) {
+    var slide = this.getSlideById(typeTitle);
+    if (null == slide) {
+      return this.addSlide(typeTitle, "", typeTitle);
     } else {
-      throw new Error("Slide and blob of chosen picture need to be defined in Slides.changePicture");
+      return slide;
     }
   };
   
-  this.positionPicture = function(slide, id) {
-    if (underscoreGS._isNumber(id) && underscoreGS._isObject(slide)) {
-      var pageElements = slide.getPageElements();
-      if (underscoreGS._isObject(pageElements)) {
-        if (underscoreGS._isObject(pageElements[id])) {
-          var height = pageElements[id].getHeight();
-          var width = pageElements[id].getWidth();           
-          if (height > width) {
-            var newWidth = (this.maxHeight / height) * width;
-            pageElements[id].setWidth(newWidth);
-            pageElements[id].setHeight(this.maxHeight);
-            pageElements[id].setLeft(this.totalWidth - newWidth - 10);
-            pageElements[id].setTop(this.totalHeight - this.maxHeight - 10);
-          } else {
-            var newHeight = (this.maxWidth / width) * height;
-            pageElements[id].setHeight(newHeight);
-            pageElements[id].setWidth(this.maxWidth);
-            pageElements[id].setTop(this.totalHeight - newHeight - 10);
-            pageElements[id].setLeft(this.totalWidth - this.maxWidth - 10);
-          }
-          return this;
-        } else {
-          throw new Error("Could not get element id off of Slide object in Slides.positionPicture");
-        }
-      } else {
-        throw new Error("Could not get slide specified by Slide object in Slides.positionPicture");
-      }
-    } else {
-      throw new Error("ID and Slide need to be defined in Slides.positionPicture");
-    }
+  this.setSlideByType = function(typeTitle, slideText) {
+    this.getSlideByType(typeTitle).setBody(slideText);
   };
 }
+

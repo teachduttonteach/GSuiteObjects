@@ -61,6 +61,12 @@ var MimeTypes = function() {
   this.DRIVE_SDK = "application/vnd.google-apps.drive-sdk";
 };
 
+var DataSheet = function() {
+  var sheet = DriveApp.getFilesByName(ScriptApp.getScriptId());
+  if (null == sheet) sheet = SpreadsheetApp.create(ScriptApp.getScriptId());
+  this.sheet = new Spreadsheet(sheet.getId());
+};
+
 var Settings = function(name, docProperties) {
   this.name_ = "SETTINGS";
   if (null != name) this.name_ = name;
@@ -104,13 +110,14 @@ var Settings = function(name, docProperties) {
     else PropertiesService.getDocumentProperties().setProperty(this.name_, stringifiedValues);
   };
   
-  this.updateTriggers = function(formId, functionName) {
-    // Update triggers for bellwork
-    var triggers = ScriptApp.getUserTriggers(FormApp.openById(formId));
-    for (var j = 0; j < triggers.length; j++) {
-      if (triggers[j].getHandlerFunction() == functionName) ScriptApp.deleteTrigger(triggers[j]);
-    }
-    ScriptApp.newTrigger(functionName).forForm(formId).onFormSubmit().create();
-  };
-
 };
+
+function updateTriggers(formId, functionName) {
+  // Update triggers for bellwork
+  var triggers = ScriptApp.getUserTriggers(FormApp.openById(formId));
+  for (var j = 0; j < triggers.length; j++) {
+    if (triggers[j].getHandlerFunction() == functionName) ScriptApp.deleteTrigger(triggers[j]);
+  }
+  ScriptApp.newTrigger(functionName).forForm(formId).onFormSubmit().create();
+}
+
